@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TubeExtractor — Obsidian Video Clipper</title>
+    <style>
+        /* Design Tokens from Apple DESIGN.md */
+        :root {
+            --primary: #0066cc;
+            --primary-focus: #0071e3;
+            --ink: #1d1d1f;
+            --body-muted: #86868b;
+            --canvas: #ffffff;
+            --canvas-parchment: #f5f5f7;
+            --surface-black: #000000;
+            --hairline: #d2d2d7;
+            --divider-soft: rgba(0, 0, 0, 0.08);
+            
+            /* Typography Scale */
+            --hero-display-size: 56px;
+            --display-lg-size: 40px;
+            --tagline-size: 21px;
+            --body-size: 17px;
+            --caption-size: 14px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+            background-color: var(--canvas);
+            color: var(--ink);
+            line-height: 1.47;
+            letter-spacing: -0.022em;
+            overflow-x: hidden;
+        }
+
+        /* SF Pro Display Style for Headlines */
+        .apple-tight {
+            letter-spacing: -0.015em;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* 1. Global Nav (Black) */
+        .global-nav {
+            background-color: var(--surface-black);
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .global-nav .logo {
+            color: white;
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: -0.12px;
+            opacity: 0.8;
+        }
+
+        /* 2. Sub-nav (Frosted Glass) */
+        .sub-nav {
+            background-color: rgba(245, 245, 247, 0.8);
+            backdrop-filter: saturate(180%) blur(20px);
+            height: 52px;
+            border-bottom: 1px solid var(--hairline);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15%;
+            position: sticky;
+            top: 44px;
+            z-index: 999;
+        }
+
+        .sub-nav .title {
+            font-size: 21px;
+            font-weight: 600;
+            letter-spacing: 0.011em;
+        }
+
+        .sub-nav .actions {
+            display: flex;
+            gap: 24px;
+        }
+
+        .sub-nav a {
+            font-size: 12px;
+            color: var(--ink);
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .sub-nav a:hover { opacity: 1; color: var(--primary); }
+
+        /* 3. Hero Tile (White) */
+        .tile {
+            padding: 80px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 100%;
+        }
+
+        .tile-light { background-color: var(--canvas); }
+        .tile-parchment { background-color: var(--canvas-parchment); }
+        .tile-dark { background-color: #161617; color: white; }
+
+        h1 {
+            font-size: var(--hero-display-size);
+            font-weight: 600;
+            line-height: 1.07;
+            margin-bottom: 16px;
+            max-width: 800px;
+        }
+
+        .lead {
+            font-size: 28px;
+            font-weight: 400;
+            line-height: 1.14;
+            margin-bottom: 40px;
+            max-width: 600px;
+        }
+
+        /* 4. Input Configuration */
+        .configurator {
+            width: 100%;
+            max-width: 680px;
+            padding: 40px;
+            border-radius: 18px;
+            background: white;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+            margin-bottom: 60px;
+        }
+
+        .input-group {
+            margin-bottom: 32px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--ink);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input {
+            width: 100%;
+            height: 56px;
+            padding: 0 20px;
+            border-radius: 12px;
+            border: 1px solid var(--hairline);
+            font-size: 17px;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            font-size: 17px;
+            font-weight: 400;
+            padding: 12px 28px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .btn-primary:hover { background-color: var(--primary-focus); }
+        .btn-primary:active { transform: scale(0.95); }
+        .btn-primary:disabled { background-color: var(--hairline); cursor: not-allowed; transform: none; }
+
+        /* 5. Progress & Results Grid */
+        .results-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 40px 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .video-card {
+            background: white;
+            border-radius: 18px;
+            padding: 24px;
+            border: 1px solid var(--hairline);
+            text-align: left;
+            transition: transform 0.3s;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        .video-card:hover { transform: translateY(-4px); }
+
+        .video-card .status-pill {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin-bottom: 16px;
+        }
+
+        .status-pill.loading { background: #e8f2ff; color: var(--primary); }
+        .status-pill.success { background: #eaffed; color: #28cd41; }
+        .status-pill.error { background: #fff2f2; color: #d70015; }
+
+        .video-card h3 {
+            font-size: 17px;
+            font-weight: 600;
+            line-height: 1.24;
+            margin-bottom: 8px;
+        }
+
+        .video-card p {
+            font-size: 14px;
+            color: var(--body-muted);
+        }
+
+        /* 6. Progress Overlay */
+        .progress-overlay {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 18px;
+            border: 1px solid var(--hairline);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1001;
+            width: 320px;
+        }
+
+        .progress-bar-bg {
+            height: 4px;
+            background: var(--canvas-parchment);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        footer {
+            padding: 80px 15%;
+            background: var(--canvas-parchment);
+            color: var(--body-muted);
+            font-size: 12px;
+            border-top: 1px solid var(--hairline);
+        }
+
+        footer .links {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .footer-col h4 { color: var(--ink); margin-bottom: 16px; font-size: 12px; }
+        .footer-col ul { list-style: none; }
+        .footer-col li { margin-bottom: 8px; }
+
+        @media (max-width: 834px) {
+            h1 { font-size: 40px; }
+            .lead { font-size: 21px; }
+            .sub-nav { padding: 0 5%; }
+            footer .links { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="global-nav">
+    <div class="logo">TubeExtractor</div>
+</nav>
+
+<div class="sub-nav">
+    <div class="title">TubeExtractor</div>
+    <div class="actions">
+        <a href="#">概览</a>
+        <a href="#">技术</a>
+        <a href="#">关于</a>
+    </div>
+</div>
+
+<main>
+    <!-- Hero Tile -->
+    <section class="tile tile-light">
+        <h1 class="apple-tight fade-in" style="animation-delay: 0.1s;">让网页内容，<br>回归纯粹。</h1>
+        <p class="lead fade-in" style="animation-delay: 0.2s;">输入博主主页，自动提取并同步至 Obsidian。<br>支持 YouTube, Bilibili & More.</p>
+        
+        <div class="configurator fade-in" style="animation-delay: 0.3s;">
+            <div class="input-group">
+                <label for="url">博主主页 URL</label>
+                <div class="input-wrapper">
+                    <input type="text" id="url" placeholder="https://www.youtube.com/@Google/videos" spellcheck="false">
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label for="limit">抓取上限</label>
+                <input type="number" id="limit" placeholder="不限" min="1">
+            </div>
+
+            <button class="btn-primary" id="extract-btn">立即开始提取</button>
+        </div>
+    </section>
+
+    <!-- Results Display -->
+    <section class="tile tile-parchment" id="results-section" style="display: none;">
+        <h2 class="apple-tight fade-in" id="creator-name" style="font-size: 40px; margin-bottom: 40px;">正在解析...</h2>
+        <div class="results-container" id="cards-grid">
+            <!-- Cards will be injected here -->
+        </div>
+    </section>
+</main>
+
+<div class="progress-overlay" id="progress-overlay">
+    <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 600;">
+        <span>同步中...</span>
+        <span id="progress-text">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+        <div id="progress-fill"></div>
+    </div>
+    <div id="current-task" style="font-size: 12px; margin-top: 8px; color: var(--body-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+</div>
+
+<footer>
+    <div class="links">
+        <div class="footer-col">
+            <h4>探索</h4>
+            <ul>
+                <li>Bilibili 提取</li>
+                <li>YouTube 提取</li>
+                <li>抖音提取</li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h4>技术栈</h4>
+            <ul>
+                <li>yt-dlp Engine</li>
+                <li>Defuddle Parser</li>
+                <li>Obsidian Sync</li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h4>账户</h4>
+            <ul>
+                <li>管理同步路径</li>
+                <li>清理缓存</li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h4>TubeExtractor</h4>
+            <ul>
+                <li>设计规范</li>
+                <li>隐私政策</li>
+            </ul>
+        </div>
+    </div>
+    <div style="border-top: 1px solid var(--hairline); padding-top: 24px;">
+        <p>Copyright © 2026 TubeExtractor Inc. 保留所有权利。</p>
+    </div>
+</footer>
+
+<script>
+    const btn = document.getElementById('extract-btn');
+    const urlInput = document.getElementById('url');
+    const limitInput = document.getElementById('limit');
+    const resultsSection = document.getElementById('results-section');
+    const cardsGrid = document.getElementById('cards-grid');
+    const creatorHeading = document.getElementById('creator-name');
+    const progressOverlay = document.getElementById('progress-overlay');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const currentTaskText = document.getElementById('current-task');
+
+    let videoCards = {};
+
+    btn.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+        const limit = limitInput.value ? parseInt(limitInput.value) : null;
+
+        if (!url) return alert('请输入主页 URL');
+
+        // Reset UI
+        cardsGrid.innerHTML = '';
+        videoCards = {};
+        resultsSection.style.display = 'flex';
+        progressOverlay.style.display = 'block';
+        btn.disabled = true;
+        progressOverlay.style.opacity = '1';
+        
+        // Scroll to results
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+        try {
+            const response = await fetch('/api/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, limit })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            handleUpdate(data);
+                        } catch (e) {}
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    function handleUpdate(data) {
+        if (data.status === 'info') {
+            creatorHeading.textContent = `博主：${data.creator}`;
+        }
+
+        if (data.status === 'progress') {
+            const pct = Math.round((data.current / data.total) * 100);
+            progressFill.style.width = `${pct}%`;
+            progressText.textContent = `${pct}%`;
+            currentTaskText.textContent = data.title;
+            
+            updateCard(data.title, 'loading', `准备处理 (${data.current}/${data.total})`);
+        }
+
+        if (data.status === 'progress-detail') {
+            const currentTitle = currentTaskText.textContent;
+            if (currentTitle) {
+                updateCard(currentTitle, 'loading', data.message);
+            }
+        }
+
+        if (data.status === 'success') {
+            progressFill.style.width = '100%';
+            progressText.textContent = '100%';
+            currentTaskText.textContent = '全部同步完成';
+            creatorHeading.textContent = `${creatorHeading.textContent} (已完成)`;
+            
+            // Mark all existing cards as success if they weren't errored
+            Object.keys(videoCards).forEach(title => {
+                if (videoCards[title].status !== 'error') {
+                    updateCard(title, 'success', '已同步至 Obsidian');
+                }
+            });
+            
+            setTimeout(() => {
+                progressOverlay.style.opacity = '0';
+                setTimeout(() => progressOverlay.style.display = 'none', 500);
+            }, 3000);
+        }
+
+        if (data.status === 'warning' || data.status === 'error') {
+            const videoTitle = data.title || (data.message.includes(': ') ? data.message.split(': ')[1] : '未知视频');
+            updateCard(videoTitle, 'error', data.message);
+        }
+    }
+
+    function updateCard(title, status, message) {
+        if (!videoCards[title]) {
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.innerHTML = `
+                <span class="status-pill ${status}">${status === 'loading' ? '正在处理' : status}</span>
+                <h3>${title}</h3>
+                <p>${message}</p>
+            `;
+            cardsGrid.prepend(card);
+            videoCards[title] = { element: card, status: status };
+        } else {
+            const card = videoCards[title].element;
+            card.querySelector('.status-pill').className = `status-pill ${status}`;
+            card.querySelector('.status-pill').textContent = status === 'loading' ? '正在处理' : (status === 'success' ? '同步成功' : '失败');
+            card.querySelector('p').textContent = message;
+            videoCards[title].status = status;
+        }
+    }
+</script>
+
+</body>
+</html>
