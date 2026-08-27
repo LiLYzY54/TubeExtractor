@@ -422,13 +422,16 @@
 
     btn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
-        const limit = limitInput.value ? parseInt(limitInput.value) : null;
+        const parsedLimit = parseInt(limitInput.value, 10);
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
 
         if (!url) return alert('请输入主页 URL');
 
         // Reset UI
         cardsGrid.innerHTML = '';
         videoCards = {};
+        currentUrl = null;
+        creatorHeading.textContent = '正在解析...';
         resultsSection.style.display = 'flex';
         progressOverlay.style.display = 'block';
         btn.disabled = true;
@@ -446,13 +449,16 @@
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let buffer = '';
 
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
+                // SSE 事件可能跨 chunk 分裂；decode 用 stream 模式避免中文多字节字符被截断乱码
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
@@ -463,6 +469,10 @@
                     }
                 }
             }
+
+            if (buffer.startsWith('data: ')) {
+                try { handleUpdate(JSON.parse(buffer.slice(6))); } catch (e) {}
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -470,7 +480,13 @@
         }
     });
 
+    let currentUrl = null;
+
     function handleUpdate(data) {
+        if (data.status === 'loading') {
+            creatorHeading.textContent = '正在解析...';
+        }
+
         if (data.status === 'info') {
             creatorHeading.textContent = `博主：${data.creator}`;
         }
@@ -480,59 +496,76 @@
             progressFill.style.width = `${pct}%`;
             progressText.textContent = `${pct}%`;
             currentTaskText.textContent = data.title;
-            
-            updateCard(data.title, 'loading', `准备处理 (${data.current}/${data.total})`);
+            currentUrl = data.url || null;
+            updateCard(data.url || data.title, data.title || '', 'loading', `准备处理 (${data.current}/${data.total})`);
         }
 
         if (data.status === 'progress-detail') {
-            const currentTitle = currentTaskText.textContent;
-            if (currentTitle) {
-                updateCard(currentTitle, 'loading', data.message);
-            }
+            updateCard(currentUrl || currentTaskText.textContent, '', 'loading', data.message);
+        }
+
+        if (data.status === 'item-done') {
+            updateCard(data.url || data.title, data.title || '', 'success', '已同步至 Obsidian');
         }
 
         if (data.status === 'success') {
             progressFill.style.width = '100%';
             progressText.textContent = '100%';
             currentTaskText.textContent = '全部同步完成';
-            creatorHeading.textContent = `${creatorHeading.textContent} (已完成)`;
-            
-            // Mark all existing cards as success if they weren't errored
-            Object.keys(videoCards).forEach(title => {
-                if (videoCards[title].status !== 'error') {
-                    updateCard(title, 'success', '已同步至 Obsidian');
+            const tail = (typeof data.ok === 'number' && typeof data.total === 'number')
+                ? ` (已完成，成功 ${data.ok}/${data.total}${data.fail ? `，失败 ${data.fail}` : ''})`
+                : ' (已完成)';
+            if (!creatorHeading.textContent.includes('已完成')) {
+                creatorHeading.textContent += tail;
+            }
+
+            Object.keys(videoCards).forEach(key => {
+                if (videoCards[key].status !== 'error') {
+                    updateCard(key, '', 'success', '已同步至 Obsidian');
                 }
             });
-            
+
             setTimeout(() => {
                 progressOverlay.style.opacity = '0';
                 setTimeout(() => progressOverlay.style.display = 'none', 500);
             }, 3000);
         }
 
-        if (data.status === 'warning' || data.status === 'error') {
-            const videoTitle = data.title || (data.message.includes(': ') ? data.message.split(': ')[1] : '未知视频');
-            updateCard(videoTitle, 'error', data.message);
+        if (data.status === 'error') {
+            creatorHeading.textContent = `❌ ${data.message}`;
+            currentTaskText.textContent = '任务失败';
+            setTimeout(() => {
+                progressOverlay.style.opacity = '0';
+                setTimeout(() => progressOverlay.style.display = 'none', 500);
+            }, 3000);
+        }
+
+        if (data.status === 'warning') {
+            updateCard(data.url || data.title || data.message, data.title || '', 'error', data.message);
         }
     }
 
-    function updateCard(title, status, message) {
-        if (!videoCards[title]) {
+    function updateCard(key, title, status, message) {
+        if (!videoCards[key]) {
             const card = document.createElement('div');
             card.className = 'video-card';
-            card.innerHTML = `
-                <span class="status-pill ${status}">${status === 'loading' ? '正在处理' : status}</span>
-                <h3>${title}</h3>
-                <p>${message}</p>
-            `;
+            const pill = document.createElement('span');
+            pill.className = `status-pill ${status}`;
+            pill.textContent = status === 'loading' ? '正在处理' : (status === 'success' ? '同步成功' : '失败');
+            const h3 = document.createElement('h3');
+            h3.textContent = title || key;
+            const p = document.createElement('p');
+            p.textContent = message;
+            card.append(pill, h3, p);
             cardsGrid.prepend(card);
-            videoCards[title] = { element: card, status: status };
+            videoCards[key] = { element: card, pill, titleEl: h3, msgEl: p, status: status };
         } else {
-            const card = videoCards[title].element;
-            card.querySelector('.status-pill').className = `status-pill ${status}`;
-            card.querySelector('.status-pill').textContent = status === 'loading' ? '正在处理' : (status === 'success' ? '同步成功' : '失败');
-            card.querySelector('p').textContent = message;
-            videoCards[title].status = status;
+            const c = videoCards[key];
+            c.pill.className = `status-pill ${status}`;
+            c.pill.textContent = status === 'loading' ? '正在处理' : (status === 'success' ? '同步成功' : '失败');
+            c.msgEl.textContent = message;
+            if (title) c.titleEl.textContent = title;
+            c.status = status;
         }
     }
 </script>
