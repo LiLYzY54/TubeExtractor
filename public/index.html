@@ -419,18 +419,50 @@
     const currentTaskText = document.getElementById('current-task');
 
     let videoCards = {};
+    let taskFinished = false;
+
+    function showError(message) {
+        creatorHeading.textContent = `❌ ${message}`;
+        currentTaskText.textContent = '任务失败';
+        setTimeout(() => {
+            progressOverlay.style.opacity = '0';
+            setTimeout(() => progressOverlay.style.display = 'none', 500);
+        }, 3000);
+    }
+
+    function showValidationError(message) {
+        cardsGrid.innerHTML = '';
+        videoCards = {};
+        taskFinished = true;
+        resultsSection.style.display = 'flex';
+        creatorHeading.textContent = `❌ ${message}`;
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
 
     btn.addEventListener('click', async () => {
-        const url = urlInput.value.trim();
+        let url = urlInput.value.trim();
         const parsedLimit = parseInt(limitInput.value, 10);
         const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
 
-        if (!url) return alert('请输入主页 URL');
+        if (!url) return showValidationError('请输入视频或主页链接');
+
+        // 无协议但形如域名（www.bilibili.com/...）→ 自动补 https://
+        if (!/^https?:\/\//i.test(url) && !/\s/.test(url) && /^[\w.-]+\.[a-z]{2,}/i.test(url)) {
+            url = 'https://' + url;
+            urlInput.value = url;
+        }
+
+        // 粘贴的是标题/搜索词而非链接：直接提示，不发起请求
+        if (!/^https?:\/\//i.test(url)) {
+            showValidationError('输入的不是链接——请粘贴完整视频/主页网址（以 https:// 开头），而不是视频标题。可在视频页点「分享 → 复制链接」获取。');
+            return;
+        }
 
         // Reset UI
         cardsGrid.innerHTML = '';
         videoCards = {};
         currentUrl = null;
+        taskFinished = false;
         creatorHeading.textContent = '正在解析...';
         resultsSection.style.display = 'flex';
         progressOverlay.style.display = 'block';
@@ -446,6 +478,19 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url, limit })
             });
+
+            // 服务端拒绝（如 400）：响应不是事件流，读取错误信息直接展示，
+            // 不能进入 SSE 解析循环（会把错误静默吞掉导致永远"正在解析"）
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok || !contentType.includes('text/event-stream')) {
+                let message = `请求被拒绝 (HTTP ${response.status})`;
+                try {
+                    const errData = await response.json();
+                    message = errData.error || message;
+                } catch (e) {}
+                showError(message);
+                return;
+            }
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -473,8 +518,13 @@
             if (buffer.startsWith('data: ')) {
                 try { handleUpdate(JSON.parse(buffer.slice(6))); } catch (e) {}
             }
+
+            // 连接结束但未收到 success/error 终态：明确提示任务可能中断
+            if (!taskFinished) {
+                showError('连接已断开，任务可能未完成（请查看服务端日志或重试）');
+            }
         } catch (err) {
-            console.error(err);
+            showError(`请求失败: ${err.message}`);
         } finally {
             btn.disabled = false;
         }
@@ -509,6 +559,7 @@
         }
 
         if (data.status === 'success') {
+            taskFinished = true;
             progressFill.style.width = '100%';
             progressText.textContent = '100%';
             currentTaskText.textContent = '全部同步完成';
@@ -532,6 +583,7 @@
         }
 
         if (data.status === 'error') {
+            taskFinished = true;
             creatorHeading.textContent = `❌ ${data.message}`;
             currentTaskText.textContent = '任务失败';
             setTimeout(() => {
