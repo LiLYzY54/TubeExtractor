@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
-import { extractToObsidian, resolveYtDlp } from './lib/extractor.js';
+import { extractToObsidian, previewTarget, resolveYtDlp } from './lib/extractor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -13,8 +13,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 预检：秒级元数据扫描，返回合集/视频清单供用户勾选，不执行提取
+app.post('/api/preview', async (req, res) => {
+  const { url } = req.body || {};
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return res.status(400).json({ error: '请提供有效的 http(s) 链接' });
+  }
+  try {
+    const preview = await previewTarget(url);
+    res.json(preview);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/extract', async (req, res) => {
-  const { url, limit } = req.body || {};
+  const { url, limit, selection, skipSynced, creator } = req.body || {};
   if (!url || !/^https?:\/\//i.test(url)) {
     return res.status(400).json({ error: '请提供有效的 http(s) 链接' });
   }
@@ -50,6 +64,9 @@ app.post('/api/extract', async (req, res) => {
     const result = await extractToObsidian({
       url,
       limit,
+      selection,
+      skipSynced: Boolean(skipSynced),
+      creator,
       apiKey: process.env.AI_API_KEY,
       apiBase: process.env.AI_API_BASE,
       model: process.env.AI_MODEL,

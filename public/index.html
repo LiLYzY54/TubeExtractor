@@ -302,6 +302,137 @@
         .footer-col ul { list-style: none; }
         .footer-col li { margin-bottom: 8px; }
 
+        /* 7. Selection UI (preview → choose → extract) */
+        :root { --ease-out-soft: cubic-bezier(0.23, 1, 0.32, 1); }
+
+        @keyframes selEnter {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: none; }
+        }
+        @keyframes selFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes shimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
+        }
+
+        .selection-inner {
+            width: 100%; max-width: 860px; margin: 0 auto; padding: 0 20px;
+            text-align: left;
+            opacity: 0; animation: selEnter 200ms var(--ease-out-soft) forwards;
+        }
+        .selection-head {
+            display: flex; align-items: baseline; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .selection-head h2 { font-size: 32px; font-weight: 600; letter-spacing: -0.015em; }
+        .btn-ghost {
+            background: none; border: none; color: var(--primary);
+            font-size: 14px; cursor: pointer; padding: 6px 12px; border-radius: 8px;
+            transition: background-color 150ms ease;
+        }
+        .btn-ghost:hover { background: rgba(0, 102, 204, 0.08); }
+        .selection-sub { font-size: 14px; color: var(--body-muted); margin-bottom: 28px; }
+
+        .sel-block { margin-bottom: 28px; opacity: 0; animation: selEnter 200ms var(--ease-out-soft) 80ms both; }
+        .sel-block h3 { font-size: 17px; font-weight: 600; margin-bottom: 14px; }
+        .sel-block h3 .badge { font-size: 12px; font-weight: 400; color: var(--body-muted); margin-left: 8px; }
+
+        .coll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+
+        .coll-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 16px; background: white;
+            border: 1px solid var(--hairline); border-radius: 14px;
+            cursor: pointer; user-select: none; position: relative;
+            opacity: 0; animation: selEnter 200ms var(--ease-out-soft) both;
+            transition: border-color 150ms ease, transform 150ms ease, background-color 150ms ease;
+        }
+        .coll-card .coll-title { flex: 1; font-size: 15px; font-weight: 500; line-height: 1.3; }
+        .coll-card .coll-count {
+            flex: none; font-size: 12px; color: var(--body-muted);
+            background: var(--canvas-parchment); border-radius: 999px; padding: 3px 9px;
+        }
+
+        .video-pick-list {
+            max-height: 340px; overflow-y: auto;
+            background: white; border: 1px solid var(--hairline); border-radius: 14px;
+        }
+        .video-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 16px; cursor: pointer; position: relative;
+            border-bottom: 1px solid var(--divider-soft);
+            opacity: 0; animation: selEnter 200ms var(--ease-out-soft) both;
+            transition: background-color 150ms ease;
+        }
+        .video-row:last-child { border-bottom: none; }
+        .video-row .v-title { flex: 1; font-size: 14px; line-height: 1.35; }
+        .badge-synced {
+            flex: none; font-size: 11px; font-weight: 600;
+            color: #28cd41; background: #eaffed; border-radius: 999px; padding: 2px 8px;
+        }
+
+        /* 自定义勾选框（transition 支持 fast 连点，入场后 scale 0.9→1） */
+        .checkbox-box {
+            position: relative; width: 22px; height: 22px; flex: none;
+            border: 1.5px solid var(--hairline); border-radius: 7px; background: white;
+            transition: background-color 150ms var(--ease-out-soft), border-color 150ms var(--ease-out-soft);
+        }
+        .checkbox-box::after {
+            content: ''; position: absolute; left: 7px; top: 3px; width: 5px; height: 10px;
+            border: solid white; border-width: 0 2px 2px 0;
+            transform: rotate(45deg) scale(0.9); opacity: 0;
+            transition: transform 150ms var(--ease-out-soft), opacity 150ms var(--ease-out-soft);
+        }
+        .coll-card input, .video-row input {
+            position: absolute; opacity: 0; pointer-events: none;
+        }
+        .coll-card input:checked ~ .checkbox-box,
+        .video-row input:checked ~ .checkbox-box {
+            background: var(--primary); border-color: var(--primary);
+        }
+        .coll-card input:checked ~ .checkbox-box::after,
+        .video-row input:checked ~ .checkbox-box::after {
+            opacity: 1; transform: rotate(45deg) scale(1);
+        }
+        .coll-card:has(input:checked) { border-color: var(--primary); background: #f0f7ff; }
+        .video-row:has(input:checked) { background: #f0f7ff; }
+
+        .selection-actions {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; flex-wrap: wrap;
+        }
+        .switch-row {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 14px; color: var(--ink); cursor: pointer;
+        }
+        .switch-row input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+        .action-btns { display: flex; gap: 12px; align-items: center; }
+
+        .pulse-line {
+            height: 13px; border-radius: 7px; margin: 10px 0;
+            background: linear-gradient(90deg, #e8e8ed 25%, #f5f5f7 50%, #e8e8ed 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s linear infinite;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .coll-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+            .video-row:hover { background: var(--canvas-parchment); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .selection-inner, .sel-block, .coll-card, .video-row {
+                animation-name: selFade !important;
+                animation-duration: 150ms !important;
+            }
+            .coll-card:hover { transform: none; }
+            .checkbox-box::after { transition-property: opacity; }
+            .pulse-line { animation-duration: 2s; }
+        }
+
         @media (max-width: 834px) {
             h1 { font-size: 40px; }
             .lead { font-size: 21px; }
@@ -345,6 +476,33 @@
             </div>
 
             <button class="btn-primary" id="extract-btn">立即开始提取</button>
+        </div>
+    </section>
+
+    <!-- Selection (preview → choose → extract) -->
+    <section class="tile tile-parchment" id="selection-section" style="display: none;">
+        <div class="selection-inner">
+            <div class="selection-head">
+                <h2 id="selection-creator">正在解析...</h2>
+                <button id="back-btn" class="btn-ghost" type="button">← 重新输入</button>
+            </div>
+            <p class="selection-sub" id="selection-sub"></p>
+            <div id="selection-body">
+                <div class="pulse-line" style="width: 240px;"></div>
+                <div class="pulse-line" style="width: 180px;"></div>
+                <div class="pulse-line" style="width: 210px;"></div>
+            </div>
+            <div id="selection-actions-row" class="selection-actions" style="display: none;">
+                <label class="switch-row">
+                    <input type="checkbox" id="skip-synced" checked>
+                    跳过已同步的视频
+                </label>
+                <div class="action-btns">
+                    <button id="sel-all" class="btn-ghost" type="button">全选</button>
+                    <button id="sel-none" class="btn-ghost" type="button">清空</button>
+                    <button id="start-sel-btn" class="btn-primary" type="button" disabled>开始提取</button>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -417,6 +575,16 @@
     const progressFill = document.getElementById('progress-fill');
     const progressText = document.getElementById('progress-text');
     const currentTaskText = document.getElementById('current-task');
+    const selectionSection = document.getElementById('selection-section');
+    const selectionCreator = document.getElementById('selection-creator');
+    const selectionSub = document.getElementById('selection-sub');
+    const selectionBody = document.getElementById('selection-body');
+    const selectionActionsRow = document.getElementById('selection-actions-row');
+    const skipSyncedInput = document.getElementById('skip-synced');
+    const selAllBtn = document.getElementById('sel-all');
+    const selNoneBtn = document.getElementById('sel-none');
+    const startSelBtn = document.getElementById('start-sel-btn');
+    const backBtn = document.getElementById('back-btn');
 
     let videoCards = {};
     let taskFinished = false;
@@ -439,26 +607,10 @@
         resultsSection.scrollIntoView({ behavior: 'smooth' });
     }
 
-    btn.addEventListener('click', async () => {
-        let url = urlInput.value.trim();
-        const parsedLimit = parseInt(limitInput.value, 10);
-        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
+    const SINGLE_VIDEO_RE = /youtube\.com\/(watch\?|shorts\/)|youtu\.be\//;
+    let previewState = null; // { url, limit, data }
 
-        if (!url) return showValidationError('请输入视频或主页链接');
-
-        // 无协议但形如域名（www.bilibili.com/...）→ 自动补 https://
-        if (!/^https?:\/\//i.test(url) && !/\s/.test(url) && /^[\w.-]+\.[a-z]{2,}/i.test(url)) {
-            url = 'https://' + url;
-            urlInput.value = url;
-        }
-
-        // 粘贴的是标题/搜索词而非链接：直接提示，不发起请求
-        if (!/^https?:\/\//i.test(url)) {
-            showValidationError('输入的不是链接——请粘贴完整视频/主页网址（以 https:// 开头），而不是视频标题。可在视频页点「分享 → 复制链接」获取。');
-            return;
-        }
-
-        // Reset UI
+    function resetProgressUI() {
         cardsGrid.innerHTML = '';
         videoCards = {};
         currentUrl = null;
@@ -466,17 +618,20 @@
         creatorHeading.textContent = '正在解析...';
         resultsSection.style.display = 'flex';
         progressOverlay.style.display = 'block';
-        btn.disabled = true;
         progressOverlay.style.opacity = '1';
-        
-        // Scroll to results
         resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function startExtract(payload) {
+        selectionSection.style.display = 'none';
+        resetProgressUI();
+        btn.disabled = true;
 
         try {
             const response = await fetch('/api/extract', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url, limit })
+                body: JSON.stringify(payload)
             });
 
             // 服务端拒绝（如 400）：响应不是事件流，读取错误信息直接展示，
@@ -528,6 +683,221 @@
         } finally {
             btn.disabled = false;
         }
+    }
+
+    // ---------- 预检与选择界面 ----------
+
+    function showPreviewLoading() {
+        selectionCreator.textContent = '正在解析主页结构...';
+        selectionSub.textContent = '';
+        selectionBody.innerHTML =
+            '<div class="pulse-line" style="width: 240px;"></div>' +
+            '<div class="pulse-line" style="width: 180px;"></div>' +
+            '<div class="pulse-line" style="width: 210px;"></div>';
+        selectionActionsRow.style.display = 'none';
+        selectionSection.style.display = 'flex';
+        selectionSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hidePreview() {
+        selectionSection.style.display = 'none';
+    }
+
+    function makeCheckbox() {
+        const el = document.createElement('span');
+        el.className = 'checkbox-box';
+        return el;
+    }
+
+    function collectSelection() {
+        const data = previewState.data;
+        const cols = [...selectionBody.querySelectorAll('input[data-kind="collection"]:checked')]
+            .map((i) => data.collections[+i.dataset.index]);
+        const vids = [...selectionBody.querySelectorAll('input[data-kind="video"]:checked')]
+            .map((i) => data.videos[+i.dataset.index]);
+        const known = cols.reduce((n, c) => n + (typeof c.count === 'number' ? c.count : 0), 0);
+        const unknown = cols.some((c) => typeof c.count !== 'number');
+        return { cols, vids, known, unknown };
+    }
+
+    function updateConfirmBtn() {
+        const { cols, vids, known, unknown } = collectSelection();
+        const empty = cols.length === 0 && vids.length === 0;
+        startSelBtn.disabled = empty;
+        if (empty) {
+            startSelBtn.textContent = '开始提取';
+        } else if (unknown) {
+            startSelBtn.textContent = `开始提取（已选 ${cols.length} 个合集${vids.length ? ` + ${vids.length} 个视频` : ''}）`;
+        } else {
+            startSelBtn.textContent = `开始提取（约 ${known + vids.length} 个视频）`;
+        }
+    }
+
+    function renderSelection(url, data, limit) {
+        previewState = { url, limit, data };
+        selectionCreator.textContent = data.creator || '未知博主';
+        const platformLabel = data.platform === 'bilibili' ? '哔哩哔哩' : data.platform === 'youtube' ? 'YouTube' : '其他平台';
+        selectionSub.textContent = `${platformLabel} · 已同步 ${data.syncTotal ?? 0} 篇 · 勾选要提取的内容`;
+
+        selectionBody.innerHTML = '';
+        const hasCollections = (data.collections || []).length > 0;
+
+        if (hasCollections) {
+            const block = document.createElement('div');
+            block.className = 'sel-block';
+            const h3 = document.createElement('h3');
+            h3.textContent = '合集';
+            const grid = document.createElement('div');
+            grid.className = 'coll-grid';
+            data.collections.forEach((col, i) => {
+                const label = document.createElement('label');
+                label.className = 'coll-card';
+                label.style.animationDelay = `${Math.min(i * 40, 320)}ms`;
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.dataset.kind = 'collection';
+                input.dataset.index = i;
+                label.append(input, makeCheckbox());
+                const title = document.createElement('span');
+                title.className = 'coll-title';
+                title.textContent = col.title;
+                const count = document.createElement('span');
+                count.className = 'coll-count';
+                count.textContent = col.count != null ? `${col.count} 个视频` : '合集';
+                label.append(title, count);
+                grid.append(label);
+            });
+            block.append(h3, grid);
+            selectionBody.append(block);
+        }
+
+        if ((data.videos || []).length) {
+            const block = document.createElement('div');
+            block.className = 'sel-block';
+            block.style.animationDelay = hasCollections ? '140ms' : '60ms';
+            const h3 = document.createElement('h3');
+            h3.textContent = '最近视频';
+            const badge = document.createElement('span');
+            badge.className = 'badge';
+            badge.textContent = `共 ${data.videos.length} 个，可手动勾选`;
+            h3.append(badge);
+            const list = document.createElement('div');
+            list.className = 'video-pick-list';
+            data.videos.forEach((v, i) => {
+                const label = document.createElement('label');
+                label.className = 'video-row';
+                label.style.animationDelay = `${Math.min(i * 25, 300)}ms`;
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.dataset.kind = 'video';
+                input.dataset.index = i;
+                // 无合集的博主：默认勾选全部未同步视频；有合集时仅作手动补充
+                input.checked = !hasCollections && !v.synced;
+                label.append(input, makeCheckbox());
+                const t = document.createElement('span');
+                t.className = 'v-title';
+                t.textContent = v.title || v.url;
+                label.append(t);
+                if (v.synced) {
+                    const b = document.createElement('span');
+                    b.className = 'badge-synced';
+                    b.textContent = '已同步';
+                    label.append(b);
+                }
+                list.append(label);
+            });
+            block.append(h3, list);
+            selectionBody.append(block);
+        }
+
+        selectionActionsRow.style.display = 'flex';
+        updateConfirmBtn();
+        selectionSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    btn.addEventListener('click', async () => {
+        let url = urlInput.value.trim();
+        const parsedLimit = parseInt(limitInput.value, 10);
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
+
+        if (!url) return showValidationError('请输入视频或主页链接');
+
+        // 无协议但形如域名（www.bilibili.com/...）→ 自动补 https://
+        if (!/^https?:\/\//i.test(url) && !/\s/.test(url) && /^[\w.-]+\.[a-z]{2,}/i.test(url)) {
+            url = 'https://' + url;
+            urlInput.value = url;
+        }
+
+        // 粘贴的是标题/搜索词而非链接：直接提示，不发起请求
+        if (!/^https?:\/\//i.test(url)) {
+            showValidationError('输入的不是链接——请粘贴完整视频/主页网址（以 https:// 开头），而不是视频标题。可在视频页点「分享 → 复制链接」获取。');
+            return;
+        }
+
+        // YouTube 单视频：意图明确，跳过选择页直接执行
+        if (SINGLE_VIDEO_RE.test(url)) {
+            startExtract({ url, limit });
+            return;
+        }
+
+        // 其余链接先预检：单视频直通，多P / 合集 / 频道进选择页
+        btn.disabled = true;
+        showPreviewLoading();
+        try {
+            const response = await fetch('/api/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                hidePreview();
+                showError(errData.error || `预检失败 (HTTP ${response.status})`);
+                return;
+            }
+            const preview = await response.json();
+            if (preview.mode === 'single') {
+                // 单视频（含无分P 的 B 站链接）：不弹选择页，直接执行
+                hidePreview();
+                startExtract({
+                    url: (preview.videos && preview.videos[0] && preview.videos[0].url) || url,
+                    limit,
+                });
+            } else {
+                renderSelection(url, preview, limit);
+            }
+        } catch (err) {
+            hidePreview();
+            showError(`预检失败: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    selectionBody.addEventListener('change', updateConfirmBtn);
+    selAllBtn.addEventListener('click', () => {
+        selectionBody.querySelectorAll('input[type="checkbox"]').forEach((i) => (i.checked = true));
+        updateConfirmBtn();
+    });
+    selNoneBtn.addEventListener('click', () => {
+        selectionBody.querySelectorAll('input[type="checkbox"]').forEach((i) => (i.checked = false));
+        updateConfirmBtn();
+    });
+    startSelBtn.addEventListener('click', () => {
+        const { cols, vids } = collectSelection();
+        if (!cols.length && !vids.length) return;
+        startExtract({
+            url: previewState.url,
+            limit: previewState.limit,
+            selection: { collections: cols, videos: vids },
+            skipSynced: skipSyncedInput.checked,
+            creator: previewState.data.creator,
+        });
+    });
+    backBtn.addEventListener('click', () => {
+        hidePreview();
+        btn.disabled = false;
+        urlInput.focus();
     });
 
     let currentUrl = null;
